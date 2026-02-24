@@ -5,6 +5,7 @@ import { LevelMap } from './maps/LevelMap.js';
 
 import { Item } from './entities/Item.js';
 import { SteeringBehaviours } from './ai/steering/SteeringBehaviours.js';
+import { StateMachine } from './ai/decisions/StateMachine.js';
 
 
 /**
@@ -29,7 +30,8 @@ export class World {
     
     Setup.createLight(this.scene);
     Setup.showHelpers(this.scene, this.camera, this.renderer, this.map);
-
+    
+    this.decision = new StateMachine();
     // Creating RecycloBot
     this.recycloBot = new DynamicEntity({ 
       position: this.map.getRandomPosition(),
@@ -75,7 +77,7 @@ export class World {
   }
   
   // create objects at random locations 
-  MakeMessyAround(n, minDistance = 1.5){  // Add minimum distance parameter
+  MakeMessyAround(n, minDistance = 1.5,spcify_type= null){  // Add minimum distance parameter
     let i = 0;
     let Maxtry = 0;
     let usedPositions = [];  // Store as array for distance checking
@@ -107,7 +109,14 @@ export class World {
         
         // Store position for future distance checks
         usedPositions.push({x: x_axis, z: z_axis});
-        
+        if (!(spcify_type==null)){
+          let item = new Item({ 
+            type: spcify_type,
+            position: new THREE.Vector3(x_axis, 0, z_axis),
+            color: itemColor 
+        });
+        return;
+        } 
         // Create the item
         let itemType = x_axis % 2 === 0 ? Item.Type.Trash : Item.Type.Recyclable;
         let itemColor = x_axis % 2 === 0 ? "brown" : "pink";
@@ -131,9 +140,35 @@ export class World {
   // Update our world
   update() {
     let dt = this.clock.getDelta();
-    var wander = SteeringBehaviours.wander(this.recycloBot);
-    this.recycloBot.applyForce(wander);
-
+    //var wander = SteeringBehaviours.wander(this.recycloBot);
+    //this.recycloBot.applyForce(wander);
+    
+ // Filter to get only trash and recyclable items (not bins or charger)
+    let trashItems = this.entities.filter(entity => 
+        entity.type === Item.Type.Trash || 
+        entity.type === Item.Type.Recyclable
+    );
+    
+    // Pass dt to switchState
+    // Call switchState and capture returned item
+    let removedItem = this.decision.switchState(
+        this.recycloBot, 
+        trashItems, 
+        this.trash_bin, 
+        this.recyle_bin, 
+        this.charger, 
+        dt,
+        this.scene
+    );
+    
+    // If an item was removed, also remove it from entities array
+    if (removedItem) {
+        this.MakeMessyAround(1,removedItem.type);
+        const index = this.entities.indexOf(removedItem);
+        if (index > -1) {
+            this.entities.splice(index, 1);
+        }
+    }
 
 
     for (let e of this.entities) {

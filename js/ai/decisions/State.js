@@ -3,7 +3,7 @@ export class State {
     constructor(name) {
         this.name = name;
         //this.actionable = actionable;
-        this.numberOFrepetition =0;
+        this.isDone = false;
         
     }
 
