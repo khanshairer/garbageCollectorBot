@@ -4,7 +4,6 @@ import { DynamicEntity } from './entities/DynamicEntity.js';
 import { LevelMap } from './maps/LevelMap.js';
 
 import { Item } from './entities/Item.js';
-import { SteeringBehaviours } from './ai/steering/SteeringBehaviours.js';
 import { StateMachine } from './ai/decisions/StateMachine.js';
 
 
@@ -77,13 +76,16 @@ export class World {
   }
   
   // create objects at random locations 
-  MakeMessyAround(n, minDistance = 1.5,spcify_type= null){  // Add minimum distance parameter
+  MakeMessyAround(n, minDistance = 1.5, specify_type = null) {
     let i = 0;
     let Maxtry = 0;
-    let usedPositions = [];  // Store as array for distance checking
+    let usedPositions = [];
+    
+    // Fix: Use correct z coordinates
     usedPositions.push({x: this.recyle_bin.position.x, z: this.recyle_bin.position.z});
-    usedPositions.push({x: this.trash_bin.position.x, z: this.recyle_bin.position.z});
-    usedPositions.push({x: this.charger.position.x, z: this.recyle_bin.position.z});
+    usedPositions.push({x: this.trash_bin.position.x, z: this.trash_bin.position.z}); // FIXED
+    usedPositions.push({x: this.charger.position.x, z: this.charger.position.z});     // FIXED
+    
     while(i < n && Maxtry < 500){
         Maxtry++;
         
@@ -104,38 +106,54 @@ export class World {
         }
         
         if(tooClose) {
-            continue;  // Skip if too close to another item
+            continue;
         }
         
         // Store position for future distance checks
         usedPositions.push({x: x_axis, z: z_axis});
-        if (!(spcify_type==null)){
-          let item = new Item({ 
-            type: spcify_type,
-            position: new THREE.Vector3(x_axis, 0, z_axis),
-            color: itemColor 
-        });
-        return;
-        } 
-        // Create the item
-        let itemType = x_axis % 2 === 0 ? Item.Type.Trash : Item.Type.Recyclable;
-        let itemColor = x_axis % 2 === 0 ? "brown" : "pink";
         
-        let item = new Item({ 
-            type: itemType,
-            position: new THREE.Vector3(x_axis, 0, z_axis),
-            color: itemColor 
-        });
-        
-        this.addEntityToWorld(item);
-        i++;
+        if (specify_type !== null) {
+            // Determine color based on type
+            let itemColor;
+            if (specify_type === Item.Type.Trash) {
+                itemColor = "brown";
+            } else if (specify_type === Item.Type.Recyclable) {
+                itemColor = "pink";
+            } else {
+                itemColor = "white";
+            }
+            
+            console.log("Creating item of type:", specify_type.toString());
+            
+            let item = new Item({ 
+                type: specify_type,  
+                position: new THREE.Vector3(x_axis, 0, z_axis),
+                color: itemColor 
+            });
+            
+            this.addEntityToWorld(item);
+            i++;  
+            // Don't break - continue until we've added n items
+        } else {
+            // Create random type
+            let itemType = x_axis % 2 === 0 ? Item.Type.Trash : Item.Type.Recyclable;
+            let itemColor = x_axis % 2 === 0 ? "brown" : "pink";
+            
+            let item = new Item({ 
+                type: itemType,
+                position: new THREE.Vector3(x_axis, 0, z_axis),
+                color: itemColor 
+            });
+            
+            this.addEntityToWorld(item);
+            i++;
+        }
     }
     
     if(Maxtry >= 500) {
         console.log(`Only placed ${i} items out of ${n} requested (max attempts reached)`);
     }
 }
-
 
   // Update our world
   update() {
@@ -148,27 +166,27 @@ export class World {
         entity.type === Item.Type.Trash || 
         entity.type === Item.Type.Recyclable
     );
+
+ console.log("this is entities ", this.entities.length);
     
     // Pass dt to switchState
     // Call switchState and capture returned item
-    let removedItem = this.decision.switchState(
+    let itemRemoved  = this.decision.switchState(
         this.recycloBot, 
         trashItems, 
         this.trash_bin, 
         this.recyle_bin, 
         this.charger, 
         dt,
-        this.scene
+        this.scene,
+        this.entities
     );
-    
-    // If an item was removed, also remove it from entities array
-    if (removedItem) {
-        this.MakeMessyAround(1,removedItem.type);
-        const index = this.entities.indexOf(removedItem);
-        if (index > -1) {
-            this.entities.splice(index, 1);
-        }
+
+    if(itemRemoved){
+      this.MakeMessyAround(1,1.5,itemRemoved);
     }
+    
+
 
 
     for (let e of this.entities) {

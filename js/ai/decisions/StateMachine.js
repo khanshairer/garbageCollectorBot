@@ -1,5 +1,6 @@
 import { State } from "./State.js";
 import { SteeringBehaviours } from '../steering/SteeringBehaviours.js';
+import { Item } from '../../entities/Item.js';
 
 export class StateMachine {
     constructor() {
@@ -12,7 +13,6 @@ export class StateMachine {
         }
         
         this.currentState = this.states[0];
-        this.events = ["Found recyclable", "Found Trash", "3s elapsed", "less than 3 itemsHandled", "3 items handled", "Arrived at charger"];
         this.check = 0;
         this.chargingTimer = 0;
         this.arrivedAtCharger = false;
@@ -24,7 +24,7 @@ export class StateMachine {
         return this.currentState;
     }
 
-    switchState(bot, trashEntities, garbage, recycle, charger, dt,scene) {
+    switchState(bot, trashEntities, garbage, recycle, charger, dt,scene,entities) {
     // Don't process state changes if charging (wait for timer)
     if (this.currentState.getName() === "Charging") {
         this.chargingTimer += dt;
@@ -65,19 +65,26 @@ export class StateMachine {
             scene.remove(isCollided.item);
             // Store the removed item to return
             let removedItem = isCollided.item;
+             let index = entities.indexOf(removedItem);
+            entities.splice(index, 1);
+            console.log(`Item removed from entities array at index ${index}`);
+            console.log(removedItem.type);
         
             if (isCollided.item.type.toString() === "Symbol(trash)") {
                 console.log("Found trash - delivering to trash bin");
                 this.currentState = this.states[1]; // DeliverTrash
                 this.check += 1;
                 console.log(`Item count: ${this.check}`);
+                return Item.Type.Trash;  
             } else if (isCollided.item.type.toString() === "Symbol(recyclable)") {
                 console.log("Found recyclable - delivering to recycling bin");
                 this.currentState = this.states[2]; // DeliverRecycling
                 this.check += 1;
                 console.log(`Item count: ${this.check}`);
+                return Item.Type.Recyclable; 
             }
-            return removedItem; // Return the removed item
+           
+
 
         } else {
             var wanderForce = SteeringBehaviours.wander(bot);
