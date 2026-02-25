@@ -24,132 +24,113 @@ export class StateMachine {
         return this.currentState;
     }
 
-    switchState(bot, trashEntities, garbage, recycle, charger, dt,scene,entities) {
-    // Don't process state changes if charging (wait for timer)
+    switchState(bot, trashEntities, garbage, recycle, charger, dt, scene, entities) {
+
     if (this.currentState.getName() === "Charging") {
+        bot.velocity.set(0, 0, 0);
         this.chargingTimer += dt;
+
         if (this.chargingTimer >= 3.0) {
-            console.log("3 seconds have passed - done charging");
             this.chargingTimer = 0;
-            this.currentState = this.states[0]; // Switch back to searching
+            this.currentState = this.states[0];
         }
         return;
     }
-    
-    // Handle drop-off waiting state
+
     if (this.isWaiting) {
         this.dropOffTimer += dt;
         if (this.dropOffTimer >= 1) {
-            console.log("Drop-off wait complete");
             this.isWaiting = false;
             this.dropOffTimer = 0;
-            
-            console.log(`Current check value: ${this.check}`);
-            
+
             if (this.check >= 3) {
-                console.log("Delivered 3 items - battery low");
-                this.check = 0; // Reset check
-                this.currentState = this.states[3]; // LowBattery
+                this.check = 0;
+                this.currentState = this.states[3];
             } else {
-                console.log("Back to searching for more items");
-                this.currentState = this.states[0]; // Back to Searching
+                this.currentState = this.states[0];
             }
         }
         return;
     }
-    
-    if (this.currentState.getName() === "SearchingForItems") {
-        var isCollided = this.detectCollision(bot, trashEntities);
-        if (isCollided.collided === true) {
-            isCollided.item.mesh.visible = false;
-            scene.remove(isCollided.item);
-            // Store the removed item to return
-            let removedItem = isCollided.item;
-             let index = entities.indexOf(removedItem);
-            entities.splice(index, 1);
-            console.log(`Item removed from entities array at index ${index}`);
-            console.log(removedItem.type);
-        
-            if (isCollided.item.type.toString() === "Symbol(trash)") {
-                console.log("Found trash - delivering to trash bin");
-                this.currentState = this.states[1]; // DeliverTrash
-                this.check += 1;
-                console.log(`Item count: ${this.check}`);
-                return Item.Type.Trash;  
-            } else if (isCollided.item.type.toString() === "Symbol(recyclable)") {
-                console.log("Found recyclable - delivering to recycling bin");
-                this.currentState = this.states[2]; // DeliverRecycling
-                this.check += 1;
-                console.log(`Item count: ${this.check}`);
-                return Item.Type.Recyclable; 
-            }
-           
 
+    if (this.currentState.getName() === "SearchingForItems") {
+
+        var isCollided = this.detectCollision(bot, trashEntities);
+
+        if (isCollided.collided === true) {
+
+            isCollided.item.mesh.visible = false;
+            scene.remove(isCollided.item.mesh);
+
+            let removedItem = isCollided.item;
+            let index = entities.indexOf(removedItem);
+            entities.splice(index, 1);
+
+            if (isCollided.item.type === Item.Type.Trash) {
+                this.currentState = this.states[1];
+                this.check += 1;
+                return Item.Type.Trash;
+            } 
+            else if (isCollided.item.type === Item.Type.Recyclable) {
+                this.currentState = this.states[2];
+                this.check += 1;
+                return Item.Type.Recyclable;
+            }
 
         } else {
             var wanderForce = SteeringBehaviours.wander(bot);
             bot.applyForce(wanderForce);
         }
     } 
+
     else if (this.currentState.getName() === "DeliverTrash") {
+
         let arriveForce = SteeringBehaviours.arrive(bot, garbage);
         bot.applyForce(arriveForce);
-        
-        let distance = bot.mesh.position.distanceTo(garbage.mesh.position);
-        if (distance < 1.0 && !this.isWaiting) {
-            console.log("Arrived at trash bin - waiting 1.5 seconds");
-            console.log(`Current check before wait: ${this.check}`);
+
+        const dx = bot.mesh.position.x - garbage.mesh.position.x;
+        const dz = bot.mesh.position.z - garbage.mesh.position.z;
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+
+        if (distanceXZ < 1.0 && !this.isWaiting) {
             bot.velocity.set(0, 0, 0);
             this.isWaiting = true;
             this.dropOffTimer = 0;
         }
     } 
+
     else if (this.currentState.getName() === "DeliverRecycling") {
+
         let arriveForce = SteeringBehaviours.arrive(bot, recycle);
         bot.applyForce(arriveForce);
-        
-        let distance = bot.mesh.position.distanceTo(recycle.mesh.position);
-        if (distance < 1.0 && !this.isWaiting) {
-            console.log("Arrived at recycling bin - waiting 1.5 seconds");
-            console.log(`Current check before wait: ${this.check}`);
+
+        const dx = bot.mesh.position.x - recycle.mesh.position.x;
+        const dz = bot.mesh.position.z - recycle.mesh.position.z;
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+
+        if (distanceXZ < 1.0 && !this.isWaiting) {
             bot.velocity.set(0, 0, 0);
             this.isWaiting = true;
             this.dropOffTimer = 0;
         }
     } 
+
     else if (this.currentState.getName() === "LowBattery") {
-        console.log("Going to charger...");
-        let arriveForce = SteeringBehaviours.arrive(bot, charger,0.5,0.5);
+
+        let arriveForce = SteeringBehaviours.arrive(bot, charger, 1.5, 1.5);
         bot.applyForce(arriveForce);
-        let distance = bot.mesh.position.distanceTo(charger.mesh.position);
 
-        
-        if (distance < .7) {
-            console.log("Arrived at charger - charging...");
-            this.currentState = this.states[4]; // Charging
-                bot.velocity.set(0, 0, 0);
+        const dx = bot.mesh.position.x - charger.mesh.position.x;
+        const dz = bot.mesh.position.z - charger.mesh.position.z;
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
 
+        if (distanceXZ < 0.7) {
+            bot.velocity.set(0, 0, 0);
+            this.currentState = this.states[4];
             this.chargingTimer = 0;
             return;
         }
     }
-
-    else if (this.currentState.getName() === "Charging") {
-    // Increment timer
-    this.chargingTimer += dt;
-    console.log(`Charging: ${this.chargingTimer.toFixed(2)}/3.0 seconds`);
-    
-    // Stop the bot from moving
-    bot.velocity.set(0, 0, 0);
-    
-    // Check if 3 seconds have passed
-    if (this.chargingTimer >= 3.0) {
-        console.log("3 seconds have passed - done charging, now wandering");
-        this.chargingTimer = 0;
-        this.currentState = this.states[0]; // Switch back to SearchingForItems (wandering)
-    }
-    return; // Don't process other states
-}
 }
     detectCollision(bot, trashEntities) {
         for (let trash of trashEntities) {

@@ -20,36 +20,65 @@ export function createCamera() {
   // Move our camera to a position upwards on y
   // then look at the origin
   camera.position.y = 20;
+  //added
   camera.lookAt(0, 0, 0);
   return camera;
 }
 
 // Creates and returns the renderer
 export function createRenderer() {
-  const renderer = new THREE.WebGLRenderer();
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
   return renderer;
 }
-
 // Creates light and adds it to the scene
 export function createLight(scene) {
+  // Directional light (main light source)
   const light = new THREE.DirectionalLight(0xffffff, 2);
   light.position.set(0, 5, 5);
   scene.add(light);
+  
+  // Add ambient light to fill in shadows and illuminate all sides
+  const ambientLight = new THREE.AmbientLight(0x404060); // Soft blue-ish ambient light
+  scene.add(ambientLight);
+  
+  // Optional: Add a second directional light from the opposite side for better coverage
+  const backLight = new THREE.DirectionalLight(0xffffff, 1);
+  backLight.position.set(0, 3, -5);
+  scene.add(backLight);
+  
+  // Optional: Add a point light near where your model will be
+  const pointLight = new THREE.PointLight(0xffffff, 1, 20);
+  pointLight.position.set(0, 3, 0);
+  scene.add(pointLight);
 }
-
 // Shows axesHelper, gridHelper, and OrbitControls
+//MODIFIED
 export function showHelpers(scene, camera, renderer, levelMap) {
-  // Include an axes helper to understand our 3D world
+
   const axesHelper = new THREE.AxesHelper(100);
   scene.add(axesHelper);
 
-  // Add orbit controls
-  // Let's us fly around the scene
   const orbitControls = new OrbitControls(camera, renderer.domElement);
 
-  // Add our grid helper so we can see the floor
+  const textureLoader = new THREE.TextureLoader();
+  const roadTexture = textureLoader.load('/woodenTexture.jpg');
+
+  roadTexture.wrapS = THREE.RepeatWrapping;
+  roadTexture.wrapT = THREE.RepeatWrapping;
+  roadTexture.repeat.set(6, 6);
+  roadTexture.colorSpace = THREE.SRGBColorSpace;
+
+  const floorGeometry = new THREE.PlaneGeometry(levelMap.width, levelMap.depth);
+  const floorMaterial = new THREE.MeshStandardMaterial({ map: roadTexture });
+
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.01;
+  scene.add(floor);
+
   const gridHelper = new THREE.GridHelper(levelMap.width, levelMap.depth);
   scene.add(gridHelper);
 }

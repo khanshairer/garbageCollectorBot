@@ -5,6 +5,7 @@ import { LevelMap } from './maps/LevelMap.js';
 
 import { Item } from './entities/Item.js';
 import { StateMachine } from './ai/decisions/StateMachine.js';
+import { GLTFLoader } from 'three/examples/jsm/Addons.js';
 
 
 /**
@@ -30,12 +31,40 @@ export class World {
     Setup.createLight(this.scene);
     Setup.showHelpers(this.scene, this.camera, this.renderer, this.map);
     
+    
     this.decision = new StateMachine();
+    
+    
     // Creating RecycloBot
-    this.recycloBot = new DynamicEntity({ 
-      position: this.map.getRandomPosition(),
-      color: 'red'
-    });
+    this.recycloBot = new DynamicEntity({
+  position: this.map.getRandomPosition(),
+  color: 'red',
+  scale: new THREE.Vector3(2, 2, 2) // whatever your bot size is
+});
+
+// load model and attach to bot
+const loader = new GLTFLoader();
+loader.load(
+  new URL('../robot/scene.gltf', import.meta.url).href,
+  (gltf) => {
+    const model = gltf.scene;
+
+    // OPTIONAL: remove default cone if you don't want it
+    this.recycloBot.mesh.clear();
+
+    // normalize model
+    model.scale.set(5.5, 5.5, 5.5); // Adjust scale as needed
+    model.position.set(0, 1, 0);
+
+    // If model faces the wrong way, rotate it:
+    // model.rotation.y = Math.PI; // example
+
+    this.recycloBot.mesh.add(model);
+  },
+  undefined,
+  (err) => console.error(err)
+);
+
 
     // Create a charger
     this.charger = new Item({ 
