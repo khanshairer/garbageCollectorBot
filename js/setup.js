@@ -44,41 +44,48 @@ export function createLight(scene) {
   const ambientLight = new THREE.AmbientLight(0x404060); // Soft blue-ish ambient light
   scene.add(ambientLight);
   
-  // Optional: Add a second directional light from the opposite side for better coverage
+  // Add a second directional light from the opposite side for better coverage
   const backLight = new THREE.DirectionalLight(0xffffff, 1);
   backLight.position.set(0, 3, -5);
   scene.add(backLight);
   
-  // Optional: Add a point light near where your model will be
+  // Add a point light near where your model will be
   const pointLight = new THREE.PointLight(0xffffff, 1, 20);
   pointLight.position.set(0, 3, 0);
   scene.add(pointLight);
 }
 // Shows axesHelper, gridHelper, and OrbitControls
-//MODIFIED
+// added wooden floor texture to make it look nicer
 export function showHelpers(scene, camera, renderer, levelMap) {
-
+  // Include an axes helper to understand our 3D world
   const axesHelper = new THREE.AxesHelper(100);
   scene.add(axesHelper);
-
+  
+  // Add orbit controls
+  // Let's us fly around the scene
   const orbitControls = new OrbitControls(camera, renderer.domElement);
 
   const textureLoader = new THREE.TextureLoader();
+  // add wooden texture for the floor
   const roadTexture = textureLoader.load('/woodenTexture.jpg');
 
+  // set the texture to repeat and adjust the scale
   roadTexture.wrapS = THREE.RepeatWrapping;
   roadTexture.wrapT = THREE.RepeatWrapping;
   roadTexture.repeat.set(6, 6);
   roadTexture.colorSpace = THREE.SRGBColorSpace;
-
+  
+  // create a large plane for the floor and apply the texture
   const floorGeometry = new THREE.PlaneGeometry(levelMap.width, levelMap.depth);
   const floorMaterial = new THREE.MeshStandardMaterial({ map: roadTexture });
-
+  
+  // rotate the floor to be horizontal and position it at y=0
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = -0.01;
   scene.add(floor);
-
+  
+  // Add our grid helper so we can see the floor
   const gridHelper = new THREE.GridHelper(levelMap.width, levelMap.depth);
   scene.add(gridHelper);
 }
